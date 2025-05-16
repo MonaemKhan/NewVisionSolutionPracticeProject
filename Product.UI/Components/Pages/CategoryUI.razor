@@ -1,0 +1,178 @@
+﻿@using Product.Model
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <!-- Left Side Dropdowns -->
+    <div class="d-flex gap-2">
+        <div class="col-md-8">
+            <Dropdown Color="DropdownColor.Light">
+                <DropdownToggleButton>
+                    Product Show
+                </DropdownToggleButton>
+                <DropdownMenu>
+                    <DropdownItem @onclick="()=>{pagePerContent = 1;TablePaging();}">1</DropdownItem>
+                    <DropdownItem @onclick="()=>{pagePerContent = 2;TablePaging();}">2</DropdownItem>
+                    <DropdownItem @onclick="()=>{pagePerContent = 5;TablePaging();}">5</DropdownItem>
+                    <DropdownItem @onclick="()=>{pagePerContent = 10;TablePaging();}">10</DropdownItem>
+                    <DropdownItem @onclick="()=>{pagePerContent = 20;TablePaging();}">20</DropdownItem>
+                    <DropdownItem @onclick="()=>{pagePerContent = 50;TablePaging();}">50</DropdownItem>
+                </DropdownMenu>
+            </Dropdown>
+        </div>
+    </div>
+</div>
+<div class="table-responsive">
+    <table class="table table-striped table-bordered text-center">
+        <thead class="table-secondary">
+            <tr>
+                <th @onclick="SortingData">@TableHead</th>
+                <th>Action</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach(var item in TablecategoryData){
+                <tr>
+                    <td>@item.Name</td>
+                    <td>
+                        <Button @onclick="()=>DeleteCategory(item.Id)">
+                            <Icon Name="IconName.Trash"></Icon>
+                        </Button>
+                    </td>
+                </tr>
+            }
+            <tr>
+                <td><TextInput @bind-Value="categoryModel.Name"></TextInput></td>
+                <td>
+                    <Button @onclick="SaveCategoryData">
+                        <Icon Name="IconName.CheckCircle"></Icon>
+                    </Button>
+                    <Button @onclick="()=>{categoryModel = new CategoryModel();}">
+                        <Icon Name="IconName.XLg"></Icon>
+                    </Button>
+                </td>
+            </tr>
+        </tbody>
+    </table>
+    <div style="display:flex;justify-content:end;">
+        <Pagination ActivePageNumber="@currentPage"
+        TotalPages="@totalPage"
+        PageChanged="OnPageChangedAsync" />
+    </div>
+</div>
+<ConfirmDialog @ref="dialog" />
+
+@code {
+    private ConfirmDialog dialog = default!;
+
+    int EditId = 0;
+
+    int totalPage = 0;
+    int currentPage = 1;
+    int pagePerContent = 5;
+    int press = 0;
+
+    string TableHead = "Category Name";
+
+    string SmallToBig = "▲";
+    string BigToSmall = "▼";
+
+    private CategoryModel categoryModel = new CategoryModel();
+    private List<CategoryModel> MaincategoryData = new List<CategoryModel>();
+    private List<CategoryModel> SubcategoryData = new List<CategoryModel>();
+    private List<CategoryModel> TablecategoryData = new List<CategoryModel>();
+
+    protected async override Task OnInitializedAsync()
+    {
+        await loaddata();
+    }
+
+    private async void DeleteCategory(int Id)
+    {
+        var options = new ConfirmDialogOptions
+            {
+                YesButtonText = "OK",
+                YesButtonColor = ButtonColor.Success,
+                NoButtonText = "CANCEL",
+                NoButtonColor = ButtonColor.Danger
+            };
+
+        var confirmation = await dialog.ShowAsync(
+            title: "Category Record Delete Confimation",
+            message1: "Do you want to proceed?",
+            confirmDialogOptions: options);
+
+        if (confirmation)
+        {
+            var error = await _apiService.deleteData(Id, "Category?Id=" + Id);
+            if (string.IsNullOrEmpty(error))
+            {
+                await loaddata();
+                await InvokeAsync(StateHasChanged);
+                _toast.Notify(new(ToastType.Success, "Data Delete Sucessfull"));
+            }
+            else
+            {
+                _toast.Notify(new(ToastType.Danger, error));
+            }
+        }
+        
+    }
+    private async void SaveCategoryData()
+    {
+        var (res, errormsg) = await _apiService.PostData<CategoryModel>(categoryModel, "Category");
+        if(string.IsNullOrEmpty(errormsg)){
+            _toast.Notify(new (ToastType.Success,"Category Save Sucessfull"));
+            categoryModel = new CategoryModel();
+            await loaddata();
+            await InvokeAsync(StateHasChanged);
+        }else{
+            _toast.Notify(new(ToastType.Danger, errormsg));
+        }
+    }
+    private async Task loaddata()
+    {
+        var (data, errorMsg) = await _apiService.getData<APIReponce<List<CategoryModel>>>("Category");
+        if (string.IsNullOrEmpty(errorMsg) && string.IsNullOrEmpty(data.ErrorMsg))
+        {
+            SubcategoryData = MaincategoryData = data.ResponceData;
+        }
+        totalPage = Convert.ToInt32(Math.Ceiling((MaincategoryData.Count() / (pagePerContent * 1.0))));
+        TablePaging();
+    }
+
+    private void TablePaging()
+    {
+        TablecategoryData = SubcategoryData.Skip((currentPage - 1) * pagePerContent).Take(pagePerContent).ToList();
+    }
+
+    private async Task OnPageChangedAsync(int newPageNumber)
+    {
+        await Task.Run(() => { currentPage = newPageNumber; });
+        TablePaging();
+    }
+
+    private void SortingData()
+    {
+        TableHead = TableHead.Replace(SmallToBig, "").Replace(BigToSmall, "");
+
+        press++;
+
+        if (press == 3)
+        {
+            SubcategoryData = MaincategoryData;
+            press = 0;
+        }
+        else if (press == 1)
+        {
+            TableHead = TableHead + " " +  BigToSmall;
+            SubcategoryData =  MaincategoryData.OrderBy(x => x.Name).ToList();
+        }
+        else
+        {
+            TableHead = TableHead + " " + SmallToBig;
+            SubcategoryData = MaincategoryData.OrderByDescending(x => x.Name).ToList();
+        }
+
+        TablePaging();
+    }
+
+}

@@ -1,0 +1,297 @@
+﻿@page "/"
+@using Product.Model
+
+<PageTitle>Product Details</PageTitle>
+
+<div class="d-flex justify-content-center" style="margin-top: 1%;">
+    <div style="width: 70%;">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <!-- Left Side Dropdowns -->
+            <div class="d-flex gap-2">
+                <div class="col-md-8">
+                    <Dropdown Color="DropdownColor.Light">
+                        <DropdownToggleButton>
+                            Product Show
+                        </DropdownToggleButton>
+                        <DropdownMenu>
+                            <DropdownItem @onclick="()=>{pagePerContent = 1;TablePaging();}">1</DropdownItem>
+                            <DropdownItem @onclick="()=>{pagePerContent = 2;TablePaging();}">2</DropdownItem>
+                            <DropdownItem @onclick="()=>{pagePerContent = 5;TablePaging();}">5</DropdownItem>
+                            <DropdownItem @onclick="()=>{pagePerContent = 10;TablePaging();}">10</DropdownItem>
+                            <DropdownItem @onclick="()=>{pagePerContent = 20;TablePaging();}">20</DropdownItem>
+                            <DropdownItem @onclick="()=>{pagePerContent = 50;TablePaging();}">50</DropdownItem>
+                        </DropdownMenu>
+                    </Dropdown>
+                </div>
+            </div>
+
+            <!-- Center Title -->
+            <div class="text-center fw-bold fs-4">
+                Product List
+            </div>
+
+            <!-- Right Side Dropdowns -->
+            <div class="d-flex gap-2">
+                <Button Color="ButtonColor.Primary" @onclick="()=>{modalCategory.ShowAsync();}">Category Details</Button>
+                <Button Color="ButtonColor.Primary" @onclick="OnShowModalClick">Add Product</Button>
+            </div>
+        </div>
+
+
+        <div class="table-responsive">
+            <table class="table table-striped table-bordered text-center">
+                <thead class="table-secondary">
+                    <tr>
+                        <th @onclick="()=>SortingData(1)">@tableHead["1"]</th>
+                        <th @onclick="()=>SortingData(2)">@tableHead["2"]</th>
+                        <th @onclick="()=>SortingData(3)">@tableHead["3"]</th>
+                        <th @onclick="()=>SortingData(4)">@tableHead["4"]</th>
+                        <th @onclick="()=>SortingData(5)">@tableHead["5"]</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @if(TableproductList.Count() <= 0){
+                        <tr>
+                            <td colspan="6">No Data Found</td>
+                        </tr>
+                    }else{
+                        @foreach (var item in TableproductList)
+                        {
+                            @if(item.StockQuentity<= 5){
+                                <tr class="table-danger">
+                                    <td>@item.Name</td>
+                                    <td>@item.CategoryName</td>
+                                    <td>@item.price</td>
+                                    <td>@item.StockQuentity</td>
+                                    <td>@item.LastUpdate</td>
+                                    <td>
+                                        <Button Color="ButtonColor.Info" @onclick="()=>EditData(item)">
+                                            <Icon Name="IconName.PencilSquare" />
+                                        </Button>
+                                        <Button Color="ButtonColor.Danger" @onclick="()=>DeleteProduct(item.Id)">
+                                            <Icon Name="IconName.Trash" />
+                                        </Button>
+                                    </td>
+                                </tr>
+                            }else{
+                                <tr>
+                                    <td>@item.Name</td>
+                                    <td>@item.CategoryName</td>
+                                    <td>@item.price</td>
+                                    <td>@item.StockQuentity</td>
+                                    <td>@item.LastUpdate</td>
+                                    <td>
+                                        <Button Color="ButtonColor.Info" @onclick="()=>EditData(item)">
+                                            <Icon Name="IconName.PencilSquare" />
+                                        </Button>
+                                        <Button Color="ButtonColor.Danger" @onclick="()=>DeleteProduct(item.Id)">
+                                            <Icon Name="IconName.Trash" />
+                                        </Button>
+                                    </td>
+                                </tr>
+                            }
+
+                        }  
+                    }                  
+                </tbody>
+            </table>
+            <div style="display:flex;justify-content:end;">
+                <Pagination ActivePageNumber="@currentPage"
+                TotalPages="@totalPage"
+                PageChanged="OnPageChangedAsync"/>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+<Modal @ref="modal" title="@modalTitle" UseStaticBackdrop="true" CloseOnEscape="false">
+    <BodyTemplate>
+        <ProductInsetUpdateUI productData="productData" closeModal="HideModal"></ProductInsetUpdateUI>
+    </BodyTemplate>        
+</Modal>
+
+<Modal @ref="modalCategory" title="Category List" UseStaticBackdrop="false" CloseOnEscape="false">
+    <BodyTemplate>
+        <CategoryUI></CategoryUI>    
+    </BodyTemplate>
+</Modal>
+<ConfirmDialog @ref="dialog" />
+
+
+@code{
+    private ConfirmDialog dialog = default!;
+
+    int totalPage = 0;
+    int currentPage = 1;
+    int pagePerContent = 5;
+
+    string modalTitle = "New Product Entry";
+    int keyVal = 0;
+    string SmallToBig = "▲";
+    string BigToSmall = "▼";
+    Dictionary<string, string> tableHead = new Dictionary<string, string>(){
+        {"1","Product Name"},
+        {"2","Category Name"},
+        {"3","Price"},
+        {"4","Stock Questity"},
+        {"5","Last Update Date"},
+    };
+    private bool showProductDetailsModal = false;
+    private Modal modal = default!;
+    private Modal modalCategory = default!;
+    [Inject] protected ToastService ToastService { get; set; } = default!;
+    ProductModel productData = new ProductModel();
+    private List<ProductModel> MainproductList = new List<ProductModel>();
+    private List<ProductModel> SubproductList = new List<ProductModel>();
+    private List<ProductModel> TableproductList = new List<ProductModel>();
+
+    protected async override Task OnInitializedAsync()
+    {
+        await loaddata();
+    }
+
+    private async Task OnShowModalClick()
+    {
+        await modal.ShowAsync();
+    }
+
+    private async Task HideModal(){
+        await loaddata();
+        modalTitle = "New Product Entry";
+        await OnHideModalClick();
+    }
+
+    private async Task OnHideModalClick()
+    {
+        await modal.HideAsync();
+    }
+
+    private async Task loaddata()
+    {
+        var (data, errorMsg) = await _apiService.getData<APIReponce<List<ProductModel>>>("Product");
+        if (string.IsNullOrEmpty(errorMsg) && string.IsNullOrEmpty(data.ErrorMsg))
+        {
+            SubproductList = MainproductList = data.ResponceData.OrderBy(x=>x.LastUpdate).ToList();
+        }
+        totalPage = Convert.ToInt32(Math.Ceiling((MainproductList.Count() / (pagePerContent * 1.0))));
+        TablePaging();
+    }
+
+    private void TablePaging()
+    {
+        TableproductList = SubproductList.Skip((currentPage - 1) * pagePerContent).Take(pagePerContent).ToList();
+    }
+    private async Task OnPageChangedAsync(int newPageNumber)
+    {
+        await Task.Run(() => { currentPage = newPageNumber; });
+        TablePaging();
+    }
+
+    private async void DeleteProduct(int Id)
+    {
+        var options = new ConfirmDialogOptions
+            {
+                YesButtonText = "OK",
+                YesButtonColor = ButtonColor.Success,
+                NoButtonText = "CANCEL",
+                NoButtonColor = ButtonColor.Danger
+            };
+
+        var confirmation = await dialog.ShowAsync(
+            title: "Product Delete Confirmation",
+            message1: "Do you want to proceed?",
+            confirmDialogOptions: options);
+
+        if (confirmation)
+        {
+            var error = await _apiService.deleteData(Id, "Product?Id=" + Id);
+            if (string.IsNullOrEmpty(error))
+            {
+                await loaddata();
+                await InvokeAsync(StateHasChanged);
+                ToastService.Notify(new(ToastType.Success, "Data Delete Sucessfull"));
+            }
+            else
+            {
+                ToastService.Notify(new(ToastType.Danger, error));
+            }
+        }
+        
+    }
+
+    private async void EditData(ProductModel data){
+        productData = data;
+        modalTitle = "Update Record of " + data.Name + " Info";
+        await OnShowModalClick();
+    }
+    int press = 0;
+    private void SortingData(int key)
+    {
+        for(int i = 1; i< 6 ; i++){
+            tableHead[i + ""] = tableHead[i + ""].Replace(SmallToBig,"").Replace(BigToSmall,"");
+        }
+
+        if(key == keyVal){
+            press++;
+        }else{
+            press = 0;
+            keyVal = key;
+        }
+
+        if(press == 2){
+            SubproductList = MainproductList;
+            press = 0;
+            keyVal = 0;
+        }
+        else if(press == 1){
+            tableHead[key + ""] = tableHead[key + ""] +" "+ BigToSmall;
+            if(key == 1){
+                SubproductList = MainproductList.OrderBy(x => x.Name).ToList();
+            }
+            else if (key == 2)
+            {
+                SubproductList = MainproductList.OrderBy(x => x.CategoryName).ToList();
+            }
+            else if (key == 3)
+            {
+                SubproductList = MainproductList.OrderBy(x => x.price).ToList();
+            }
+            else if (key == 4)
+            {
+                SubproductList = MainproductList.OrderBy(x => x.StockQuentity).ToList();
+            }
+            else if (key == 5)
+            {
+                SubproductList = MainproductList.OrderBy(x => x.LastUpdate).ToList();
+            }
+        }else{
+            tableHead[key + ""] = tableHead[key + ""] +" "+ SmallToBig;
+            if (key == 1)
+            {
+                SubproductList = MainproductList.OrderByDescending(x => x.Name).ToList();
+            }
+            else if (key == 2)
+            {
+                SubproductList = MainproductList.OrderByDescending(x => x.CategoryName).ToList();
+            }
+            else if (key == 3)
+            {
+                SubproductList = MainproductList.OrderByDescending(x => x.price).ToList();
+            }
+            else if (key == 4)
+            {
+                SubproductList = MainproductList.OrderByDescending(x => x.StockQuentity).ToList();
+            }
+            else if (key == 5)
+            {
+                SubproductList = MainproductList.OrderByDescending(x => x.LastUpdate).ToList();
+            }
+        }
+
+        TablePaging();
+    }
+}
+
+

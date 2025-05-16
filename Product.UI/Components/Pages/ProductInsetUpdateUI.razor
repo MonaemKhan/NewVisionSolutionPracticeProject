@@ -1,0 +1,105 @@
+﻿@using Product.Model
+
+<div style="margin-left:5%">
+    <div class="form-group row mb-5">
+        <label class="col-md-4 col-form-label">Product Name: <span class="text-danger">*</span></label>
+        <div class="col-md-8">
+            <TextInput @bind-Value="@productData.Name" Disabled="false" Placeholder="Enter text" />
+        </div>
+    </div>
+    <div class="form-group row mb-5">
+        <label class="col-md-4 col-form-label">Category Name: <span class="text-danger">*</span></label>
+
+        <div class="col-md-8">
+            <Dropdown Color="DropdownColor.Light">
+                <DropdownToggleButton>
+                    @CatagoryName
+                </DropdownToggleButton>
+                <DropdownMenu>
+                    @foreach (var cdata in categoryData)
+                    {
+                        <DropdownItem @onclick="()=>OnAutoCompleteChanged(cdata)">@cdata.Name</DropdownItem>
+                    }
+                </DropdownMenu>
+            </Dropdown>
+        </div>
+    </div>
+    <div class="form-group row mb-5">
+        <label class="col-md-4 col-form-label">Price : <span class="text-danger">*</span></label>
+        <div class="col-md-8">
+            <NumberInput TValue="decimal" @bind-Value="@productData.price"/>
+        </div>
+    </div>
+    <div class="form-group row mb-5">
+        <label class="col-md-4 col-form-label">Stock Quentity: <span class="text-danger">*</span></label>
+        <div class="col-md-8">
+            <NumberInput @bind-Value="@productData.StockQuentity"/>
+        </div>
+    </div>
+
+    <div class="col-2">
+        <Button Color="ButtonColor.Info" @onclick="SaveOrUpdateProductInfo">@btnName</Button>
+    </div>
+</div>
+@code {
+    private string btnName = "Save";
+    private string CatagoryName = "Select a Category";
+    [Inject] protected ToastService ToastService { get; set; } = default!;
+
+    [Parameter]
+    public ProductModel productData { get; set; }
+    private List<CategoryModel> categoryData = new List<CategoryModel>();
+    [Parameter]
+    public EventCallback closeModal { get; set; }
+
+    protected async override Task OnInitializedAsync()
+    {
+        await loaddata();
+    }
+    private async Task loaddata()
+    {
+        var (data, errorMsg) = await _apiService.getData<APIReponce<List<CategoryModel>>>("Category");
+        if (string.IsNullOrEmpty(errorMsg) && string.IsNullOrEmpty(data.ErrorMsg))
+        {
+            categoryData = data.ResponceData;
+        }
+        CatagoryName = productData.CategoryName;
+        if(productData.Id != 0)
+        {
+            btnName = "Update";
+        }else{
+            productData = new ProductModel();
+            CatagoryName = "Select a Category";
+        }
+    }
+
+    private void OnAutoCompleteChanged(CategoryModel data)
+    {
+        if (data != null)
+        {
+            productData.CategoryId = data.Id;
+            CatagoryName = productData.CategoryName = data.Name;
+        }else{
+            productData.CategoryId = 0;
+            productData.CategoryName = "";
+            CatagoryName = "Select a Category";
+        }
+
+    }
+    private async Task SaveOrUpdateProductInfo()
+    {
+        productData.LastUpdate = DateTimeOffset.Now.ToString("yyyy-MM-dd HH:mm:ss");
+        (ProductModel data,string errorMsg) = await _apiService.PostData<ProductModel>(productData, "Product");
+        if(string.IsNullOrEmpty(errorMsg)){
+            if(productData.Id != 0){
+                ToastService.Notify(new(ToastType.Success, data.Name + " Product Data Update Sucessfully"));
+            }else{
+                ToastService.Notify(new(ToastType.Success, "Product Data Save Sucessfully Id - " + data.Id));
+            }
+            productData = new ProductModel();
+            await closeModal.InvokeAsync();
+        }else{
+            ToastService.Notify(new(ToastType.Danger, errorMsg));
+        }
+    }
+}
