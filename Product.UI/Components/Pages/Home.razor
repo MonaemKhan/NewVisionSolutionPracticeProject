@@ -8,7 +8,7 @@
         <div class="d-flex justify-content-between align-items-center mb-4">
             <!-- Left Side Dropdowns -->
             <div class="d-flex gap-2">
-                <div class="col-md-8">
+                <div class="col-md-6">
                     <Dropdown Color="DropdownColor.Light">
                         <DropdownToggleButton>
                             Product Show
@@ -22,6 +22,9 @@
                             <DropdownItem @onclick="()=>{pagePerContent = 50;TablePaging();}">50</DropdownItem>
                         </DropdownMenu>
                     </Dropdown>
+                </div>
+                <div class="col-md-6">
+                    <TextInput @bind-Value="SearchData" @onkeypress="SearchKeyUPData" Placeholder="Search . . ."></TextInput>
                 </div>
             </div>
 
@@ -121,6 +124,7 @@
 
 
 @code{
+    string SearchData = "";
     private ConfirmDialog dialog = default!;
 
     int totalPage = 0;
@@ -218,7 +222,17 @@
                 ToastService.Notify(new(ToastType.Danger, error));
             }
         }
-        
+
+    }
+
+    private void SearchKeyUPData(KeyboardEventArgs e)
+    {
+        SubproductList = MainproductList.Where(x => x.Name.ToUpper().Contains(e.Key.ToUpper())
+                                              || x.CategoryName.ToUpper().Contains(e.Key.ToUpper())).ToList();
+        if (e.Key == "Enter"){
+            SubproductList = MainproductList;
+        }
+        TablePaging();
     }
 
     private async void EditData(ProductModel data){
