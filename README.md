@@ -11,11 +11,6 @@ Doing A Practice project for New Vision Solutions Ltd. As a given Task.
 - Search Option For Filtering Data
 
 
-## Demo
-
- - [Demo Website](https://mamonaemkhan.bsite.net/)
-
-
 # Photos
 - First Look Of the Web Application
 ![1](https://github.com/MonaemKhan/NewVisionSolutionPracticeProject/blob/main/Image%20Screen%20Short/1.%20First%20Look.png)
